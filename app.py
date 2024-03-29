@@ -8,7 +8,10 @@ class JigsawPuzzleGame:
         self.master = master
         self.master.title("Jigsaw Puzzle Game")
 
-        self.canvas = tk.Canvas(master, width=800, height=600, bg="white")
+        self.canvas_width = 1200  # Adjust canvas width
+        self.canvas_height = 800  # Adjust canvas height
+
+        self.canvas = tk.Canvas(master, width=self.canvas_width, height=self.canvas_height, bg="white")
         self.canvas.pack()
 
         self.load_button = tk.Button(master, text="Load Image", command=self.load_image)
@@ -19,6 +22,7 @@ class JigsawPuzzleGame:
 
         self.image_path = None
         self.original_image = None
+        self.piece_size = 200  # Adjust puzzle piece size
         self.pieces = []
 
     def load_image(self):
@@ -31,44 +35,45 @@ class JigsawPuzzleGame:
         self.canvas.delete("all")
         self.pieces.clear()
 
-        # Divide the image into puzzle pieces
-        num_pieces_x = 4
-        num_pieces_y = 3
-        piece_width = self.original_image.width // num_pieces_x
-        piece_height = self.original_image.height // num_pieces_y
+        # Calculate the number of pieces in rows and columns
+        num_pieces_x = self.canvas_width // self.piece_size
+        num_pieces_y = self.canvas_height // self.piece_size
 
+        # Resize the image to fit the canvas
+        self.original_image = self.original_image.resize((num_pieces_x * self.piece_size, num_pieces_y * self.piece_size))
+
+        # Divide the resized image into puzzle pieces
         for y in range(num_pieces_y):
             for x in range(num_pieces_x):
-                left = x * piece_width
-                top = y * piece_height
-                right = left + piece_width
-                bottom = top + piece_height
+                left = x * self.piece_size
+                top = y * self.piece_size
+                right = left + self.piece_size
+                bottom = top + self.piece_size
                 piece_image = self.original_image.crop((left, top, right, bottom))
-                piece = PuzzlePiece(self.canvas, piece_image, x, y, piece_width, piece_height)
+                piece = PuzzlePiece(self.canvas, piece_image, x, y, self.piece_size)
                 self.pieces.append(piece)
 
     def shuffle_pieces(self):
         random.shuffle(self.pieces)
         for i, piece in enumerate(self.pieces):
-            piece.grid_x = i % 4
-            piece.grid_y = i // 4
+            piece.grid_x = i % (self.canvas_width // self.piece_size)
+            piece.grid_y = i // (self.canvas_width // self.piece_size)
             piece.update_position()
 
 class PuzzlePiece:
-    def __init__(self, canvas, image, grid_x, grid_y, width, height):
+    def __init__(self, canvas, image, grid_x, grid_y, size):
         self.canvas = canvas
         self.image = ImageTk.PhotoImage(image)
         self.grid_x = grid_x
         self.grid_y = grid_y
-        self.width = width
-        self.height = height
+        self.size = size
         self.piece_id = None
 
         self.create_piece()
 
     def create_piece(self):
-        self.piece_id = self.canvas.create_image(self.grid_x * self.width + self.width / 2,
-                                                 self.grid_y * self.height + self.height / 2,
+        self.piece_id = self.canvas.create_image(self.grid_x * self.size + self.size / 2,
+                                                 self.grid_y * self.size + self.size / 2,
                                                  image=self.image, anchor=tk.CENTER, tags="piece")
         self.canvas.tag_bind(self.piece_id, "<Button-1>", self.on_piece_click)
 
@@ -83,16 +88,16 @@ class PuzzlePiece:
 
     def on_piece_release(self, event):
         x, y = event.x, event.y
-        grid_x = min(max(int(x / self.width), 0), 3)
-        grid_y = min(max(int(y / self.height), 0), 2)
+        grid_x = min(max(int(x / self.size), 0), (self.canvas.winfo_width() // self.size) - 1)
+        grid_y = min(max(int(y / self.size), 0), (self.canvas.winfo_height() // self.size) - 1)
         self.grid_x, self.grid_y = grid_x, grid_y
         self.update_position()
         self.canvas.unbind("<B1-Motion>")
         self.canvas.unbind("<ButtonRelease-1>")
 
     def update_position(self):
-        self.canvas.coords(self.piece_id, self.grid_x * self.width + self.width / 2,
-                           self.grid_y * self.height + self.height / 2)
+        self.canvas.coords(self.piece_id, self.grid_x * self.size + self.size / 2,
+                           self.grid_y * self.size + self.size / 2)
 
 def main():
     root = tk.Tk()
